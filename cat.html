@@ -1,0 +1,947 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Cat Run</title>
+    <style>
+        :root {
+            --primary: #4f46e5;
+            --danger: #ef4444;
+            --text: #1f2937;
+            --bg: #f3f4f6;
+        }
+
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--bg);
+            overflow: hidden; /* Prevent scrolling on mobile */
+            touch-action: none;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+        }
+
+        #game-container {
+            position: relative;
+            width: 100%;
+            max-width: 800px;
+            height: 400px;
+            background: linear-gradient(to bottom, #87CEEB 0%, #E0F7FA 100%);
+            box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+            border-radius: 12px;
+            overflow: hidden;
+            transition: background 1s ease;
+        }
+
+        canvas {
+            display: block;
+            width: 100%;
+            height: 100%;
+        }
+
+        /* UI Overlays */
+        .ui-layer {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            padding: 20px;
+            box-sizing: border-box;
+        }
+
+        .hud {
+            display: flex;
+            justify-content: space-between;
+            align-items: center; /* Center items vertically */
+            font-size: 24px;
+            font-weight: bold;
+            color: var(--text);
+            text-shadow: 1px 1px 0 rgba(255,255,255,0.5);
+            width: 100%; /* Ensure full width */
+        }
+
+        .hearts {
+            color: var(--danger);
+        }
+
+        /* Exit Button Styling */
+        #exitGameBtn {
+            pointer-events: auto;
+            background-color: rgba(255, 255, 255, 0.5);
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+            padding: 0;
+            margin-left: 15px;
+            border: 2px solid rgba(255,255,255,0.8);
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+        
+        #exitGameBtn:hover {
+            background-color: rgba(255, 255, 255, 0.9);
+            transform: scale(1.1);
+        }
+
+        /* Screens (Start/Game Over) */
+        .screen {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(255, 255, 255, 0.85);
+            backdrop-filter: blur(4px);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 10;
+            pointer-events: auto;
+            transition: opacity 0.3s;
+        }
+
+        .hidden {
+            opacity: 0;
+            pointer-events: none;
+        }
+
+        h1 {
+            font-size: 48px;
+            margin: 0 0 10px 0;
+            color: var(--primary);
+            text-align: center;
+        }
+
+        p {
+            font-size: 18px;
+            color: #4b5563;
+            margin-bottom: 20px;
+            text-align: center;
+            max-width: 80%;
+        }
+        
+        /* New Commentary Styles */
+        .story-text {
+            font-size: 14px;
+            font-style: italic;
+            color: #6b7280;
+            margin-bottom: 30px;
+            max-width: 70%;
+            text-align: center;
+            background: rgba(255,255,255,0.6);
+            padding: 8px 12px;
+            border-radius: 8px;
+        }
+
+        .commentary-box {
+            font-size: 16px;
+            color: #4f46e5;
+            background: #eef2ff;
+            padding: 15px;
+            border-radius: 12px;
+            margin-bottom: 20px;
+            max-width: 80%;
+            border: 1px solid #c7d2fe;
+            position: relative;
+            min-height: 24px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .commentary-box::after {
+            content: '';
+            position: absolute;
+            bottom: -10px;
+            left: 50%;
+            margin-left: -10px;
+            border-width: 10px 10px 0;
+            border-style: solid;
+            border-color: #eef2ff transparent;
+            display: block;
+            width: 0;
+        }
+
+        button {
+            background-color: var(--primary);
+            color: white;
+            border: none;
+            padding: 12px 32px;
+            font-size: 20px;
+            border-radius: 50px;
+            cursor: pointer;
+            font-weight: bold;
+            box-shadow: 0 4px 6px rgba(79, 70, 229, 0.3);
+            transition: transform 0.1s, background-color 0.2s;
+            margin: 5px;
+        }
+
+        button:hover {
+            background-color: #4338ca;
+            transform: translateY(-2px);
+        }
+
+        button:active {
+            transform: translateY(0);
+        }
+
+        button:disabled {
+            background-color: #9ca3af;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .instructions {
+            margin-top: 20px;
+            font-size: 14px;
+            color: #6b7280;
+            background: rgba(255,255,255,0.5);
+            padding: 8px 16px;
+            border-radius: 20px;
+        }
+
+        /* Jump Button Styling */
+        .controls-area {
+            width: 100%;
+            display: flex;
+            justify-content: flex-end;
+            align-items: flex-end;
+            pointer-events: none; /* Let clicks pass through container */
+        }
+
+        #jumpBtn {
+            pointer-events: auto;
+            background-color: rgba(255, 255, 255, 0.8);
+            color: var(--text);
+            border: 2px solid var(--primary);
+            width: 80px;
+            height: 80px;
+            border-radius: 50%;
+            font-size: 14px;
+            font-weight: bold;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.2);
+            touch-action: manipulation;
+            user-select: none;
+            transition: transform 0.1s;
+            text-transform: uppercase;
+        }
+
+        #jumpBtn:active {
+            transform: scale(0.90);
+            background-color: var(--primary);
+            color: white;
+        }
+
+        /* Theme Modal */
+        #themeModal {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 90%;
+            max-width: 320px;
+            background: white;
+            padding: 20px;
+            border-radius: 12px;
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+            z-index: 20;
+            text-align: center;
+            display: none;
+        }
+        
+        #themeModal.active {
+            display: block;
+        }
+
+        #themeInput {
+            width: 100%;
+            padding: 10px;
+            margin: 15px 0;
+            border: 2px solid #e5e7eb;
+            border-radius: 8px;
+            font-size: 16px;
+            box-sizing: border-box;
+        }
+        
+        .loading-spinner {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid rgba(255,255,255,.3);
+            border-radius: 50%;
+            border-top-color: #4f46e5;
+            animation: spin 1s ease-in-out infinite;
+            margin-right: 8px;
+        }
+        
+        #spinner {
+             border-top-color: #fff; /* Button spinner is white */
+             display: none;
+        }
+        
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        /* Mobile Adjustments */
+        @media (max-width: 600px) {
+            #game-container {
+                height: 100vh;
+                border-radius: 0;
+            }
+            h1 { font-size: 32px; }
+            .hud { font-size: 18px; padding: 10px; }
+        }
+    </style>
+</head>
+<body>
+
+    <div id="game-container">
+        <canvas id="gameCanvas"></canvas>
+
+        <!-- Heads Up Display -->
+        <div class="ui-layer">
+            <div class="hud">
+                <div id="scoreDisplay">Score: 0</div>
+                <div style="display: flex; align-items: center;">
+                    <div id="healthDisplay" class="hearts">❤️❤️❤️</div>
+                    <button id="exitGameBtn" title="Exit to Home">🏠</button>
+                </div>
+            </div>
+            
+            <!-- Controls Layer -->
+            <div class="controls-area">
+                <button id="jumpBtn">Jump</button>
+            </div>
+        </div>
+
+        <!-- Start Screen -->
+        <div id="startScreen" class="screen">
+            <h1 id="gameTitle">🐈 Cat Run</h1>
+            <p id="gameDesc">Jump over obstacles to survive!</p>
+            <p id="gameStory" class="story-text" style="display:none;">One day, a cat decided to run.</p>
+            <div>
+                <button id="startBtn">Play Now</button>
+                <button id="themeBtn" style="background-color: #8b5cf6;">✨ Magic Theme</button>
+            </div>
+            <div class="instructions">Spacebar, Up Arrow, or Tap to Jump</div>
+        </div>
+
+        <!-- Game Over Screen -->
+        <div id="gameOverScreen" class="screen hidden">
+            <h1>Game Over</h1>
+            
+            <div id="commentaryBox" class="commentary-box">
+                <div class="loading-spinner"></div> Analyzing Run...
+            </div>
+            
+            <p id="finalScore">Score: 0</p>
+            <div>
+                <button id="restartBtn">Try Again</button>
+                <button id="homeBtn" style="background-color: #6b7280;">Home</button>
+            </div>
+        </div>
+        
+        <!-- Theme Generator Modal -->
+        <div id="themeModal">
+            <h2>✨ Generate Theme</h2>
+            <p style="font-size: 14px; margin-bottom: 10px;">Enter a prompt (e.g., "Underwater", "Mars", "Candy Land")</p>
+            <input type="text" id="themeInput" placeholder="Enter your idea...">
+            <div style="display:flex; gap:10px; justify-content:center;">
+                <button id="cancelThemeBtn" style="background-color: #9ca3af; padding: 8px 16px; font-size: 16px;">Cancel</button>
+                <button id="generateThemeBtn" style="background-color: #8b5cf6; padding: 8px 16px; font-size: 16px;">
+                    <div class="loading-spinner" id="spinner"></div>Generate
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // --- Gemini API Configuration ---
+        const apiKey = ""; // Injected by environment
+
+        // Helper to get API key (works in preview OR export)
+        function getEffectiveApiKey() {
+            if (apiKey && apiKey.length > 0) return apiKey; // Environment key (Preview)
+            
+            // Exported / Local key
+            let stored = localStorage.getItem('cat_run_gemini_key');
+            if (!stored) {
+                stored = prompt("To use AI features (Theme/Roast), please enter your Gemini API Key:\n(Get one for free at aistudio.google.com)");
+                if (stored) {
+                    localStorage.setItem('cat_run_gemini_key', stored);
+                }
+            }
+            return stored;
+        }
+
+        // --- Game Configuration ---
+        const config = {
+            gravity: 0.6,
+            jumpForce: -13,
+            groundHeight: 50,
+            initialSpeed: 6,
+            speedIncrease: 0.001,
+            obstacleSpawnRate: 90,
+            maxHealth: 3
+        };
+
+        // --- Theme State ---
+        let theme = {
+            player: '🐈',
+            obstacles: ['🌵', '🪨', '📦', '🚧'],
+            birds: ['🦅', '🦇', '🦜', '🐝'], 
+            clouds: ['☁️', '🌥️'],
+            bgGradient: ['#87CEEB', '#E0F7FA'],
+            groundColor: '#4ade80',
+            roadColor: '#6b7280',
+            title: 'Cat Run',
+            desc: 'Jump over obstacles to survive!',
+            story: ''
+        };
+
+        // --- Game State ---
+        let canvas, ctx;
+        let animationId;
+        let frameCount = 0;
+        let score = 0;
+        let gameSpeed = config.initialSpeed;
+        let isGameOver = false;
+        let isPlaying = false;
+        let lastCauseOfDeath = ""; // Track what killed the player
+        let sprites = {
+            player: [theme.player],
+            obstacles: theme.obstacles,
+            birds: theme.birds, 
+            clouds: theme.clouds
+        };
+
+        // --- Entities ---
+        const player = {
+            x: 50,
+            y: 0,
+            width: 40,
+            height: 40,
+            dy: 0,
+            grounded: false,
+            health: config.maxHealth,
+            
+            draw() {
+                const bob = Math.sin(frameCount * 0.2) * 3;
+                
+                // Shadow
+                ctx.fillStyle = 'rgba(0,0,0,0.2)';
+                ctx.beginPath();
+                ctx.ellipse(this.x + 20, this.y + config.groundHeight - 10, 15, 5, 0, 0, Math.PI * 2);
+                ctx.fill();
+
+                // Player Emoji - Flipped to face right
+                ctx.save(); 
+                
+                let renderY = this.y + bob;
+                if (!this.grounded) renderY = this.y; 
+                
+                ctx.translate(this.x + 20, canvas.height - config.groundHeight + renderY);
+                ctx.scale(-1, 1); 
+                
+                ctx.font = '40px Arial';
+                ctx.textAlign = 'center'; 
+                ctx.textBaseline = 'bottom';
+                ctx.fillStyle = '#000000';
+                
+                ctx.fillText(sprites.player[0], 0, 0);
+                ctx.restore(); 
+            },
+
+            update() {
+                // 1. Apply Velocity first
+                this.y += this.dy;
+
+                // 2. Gravity & Ground Collision
+                if (this.y < 0) {
+                    // In air: Apply gravity
+                    this.dy += config.gravity;
+                    this.grounded = false;
+                } else {
+                    // On ground: Reset
+                    this.dy = 0;
+                    this.y = 0;
+                    this.grounded = true;
+                }
+            },
+
+            jump() {
+                if (this.grounded) {
+                    this.dy = config.jumpForce;
+                    this.grounded = false;
+                }
+            }
+        };
+
+        let obstacles = [];
+        let clouds = [];
+
+        // --- Setup ---
+        function init() {
+            canvas = document.getElementById('gameCanvas');
+            ctx = canvas.getContext('2d');
+            
+            resize();
+            window.addEventListener('resize', resize);
+
+            // Inputs
+            document.addEventListener('keydown', handleInput);
+            canvas.addEventListener('touchstart', handleTouch, {passive: false});
+            canvas.addEventListener('mousedown', handleTouch);
+
+            // Buttons
+            document.getElementById('startBtn').addEventListener('click', startGame);
+            document.getElementById('restartBtn').addEventListener('click', startGame);
+            document.getElementById('homeBtn').addEventListener('click', goHome);
+            
+            // Exit Game Button (In-game)
+            document.getElementById('exitGameBtn').addEventListener('click', (e) => {
+                e.preventDefault();
+                e.stopPropagation(); 
+                quitGame();
+            });
+            
+            // Jump Button
+            const jumpBtn = document.getElementById('jumpBtn');
+            const handleJumpBtn = (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                if (isPlaying) player.jump();
+            };
+            jumpBtn.addEventListener('touchstart', handleJumpBtn, {passive: false});
+            jumpBtn.addEventListener('mousedown', handleJumpBtn);
+            
+            // Theme UI
+            document.getElementById('themeBtn').addEventListener('click', () => {
+                document.getElementById('themeModal').classList.add('active');
+            });
+            document.getElementById('cancelThemeBtn').addEventListener('click', () => {
+                document.getElementById('themeModal').classList.remove('active');
+            });
+            document.getElementById('generateThemeBtn').addEventListener('click', handleThemeGeneration);
+            
+            // Initial render
+            renderBackground();
+        }
+
+        function resize() {
+            const container = document.getElementById('game-container');
+            canvas.width = container.clientWidth;
+            canvas.height = container.clientHeight;
+            if(!isPlaying) renderBackground();
+        }
+
+        function handleInput(e) {
+            if (document.getElementById('themeModal').classList.contains('active')) return;
+
+            if (e.code === 'Space' || e.key === ' ' || e.code === 'ArrowUp' || e.key === 'w' || e.key === 'W') {
+                e.preventDefault(); 
+                
+                if (isPlaying) {
+                    player.jump();
+                } else if (isGameOver && !document.getElementById('gameOverScreen').classList.contains('hidden')) {
+                    startGame();
+                } else if (!isPlaying && !isGameOver && !document.getElementById('startScreen').classList.contains('hidden')) {
+                    startGame();
+                }
+            }
+        }
+
+        function handleTouch(e) {
+            if (e.type === 'touchstart') e.preventDefault();
+            if (isPlaying) player.jump();
+        }
+
+        // --- Gemini Integration ---
+        async function handleThemeGeneration() {
+            const prompt = document.getElementById('themeInput').value;
+            if (!prompt) return;
+
+            const btn = document.getElementById('generateThemeBtn');
+            const spinner = document.getElementById('spinner');
+            const input = document.getElementById('themeInput');
+            
+            btn.disabled = true;
+            input.disabled = true;
+            spinner.style.display = 'inline-block';
+            btn.childNodes[1].textContent = " Magic happening...";
+
+            try {
+                const newTheme = await generateThemeFromGemini(prompt);
+                applyTheme(newTheme);
+                document.getElementById('themeModal').classList.remove('active');
+            } catch (error) {
+                console.error("Theme gen failed", error);
+                alert("Failed to generate theme. Check your API key and try again.");
+            } finally {
+                btn.disabled = false;
+                input.disabled = false;
+                spinner.style.display = 'none';
+                btn.childNodes[1].textContent = "Generate";
+            }
+        }
+
+        async function generateThemeFromGemini(userPrompt) {
+            const systemPrompt = `You are a game asset generator. You must return a valid JSON object.
+            The user will give you a theme (e.g. "Space", "Pirate"). 
+            Generate appropriate emojis and colors.
+            Also generate a funny 1-sentence backstory.
+            
+            Required JSON Schema:
+            {
+                "player": "emoji char",
+                "obstacles": ["emoji1", "emoji2", "emoji3"],
+                "birds": ["flying_emoji1", "flying_emoji2"],
+                "clouds": ["emoji1", "emoji2"],
+                "bgGradientTop": "hex color",
+                "bgGradientBottom": "hex color",
+                "groundColor": "hex color",
+                "roadColor": "hex color",
+                "title": "Short creative game title",
+                "desc": "Short tagline",
+                "story": "Funny 1-sentence backstory about why the character is running"
+            }`;
+
+            const userMessage = `Create a game theme for: "${userPrompt}"`;
+
+            const response = await callGeminiWithRetry(systemPrompt, userMessage);
+            const text = response.candidates[0].content.parts[0].text;
+            
+            const jsonStr = text.replace(/```json/g, '').replace(/```/g, '').trim();
+            return JSON.parse(jsonStr);
+        }
+        
+        async function generateRoast() {
+            const commentaryBox = document.getElementById('commentaryBox');
+            commentaryBox.innerHTML = '<div class="loading-spinner"></div> Analyzing Run...';
+            
+            const finalScore = Math.floor(score);
+            const cause = lastCauseOfDeath || "clumsiness";
+            
+            const systemPrompt = "You are a witty, slightly sarcastic video game announcer. Keep it under 20 words.";
+            const userMessage = `The player just lost in the game '${theme.title}'. 
+            Score: ${finalScore}. 
+            Killed by: '${cause}'. 
+            Theme context: ${theme.desc}.
+            Give a funny, short 1-sentence reaction to their loss. Use emojis.`;
+
+            try {
+                const response = await callGeminiWithRetry(systemPrompt, userMessage);
+                const text = response.candidates[0].content.parts[0].text.trim();
+                commentaryBox.innerText = text;
+            } catch (e) {
+                commentaryBox.innerText = "Better luck next time! (AI offline)";
+            }
+        }
+
+        async function callGeminiWithRetry(systemPrompt, userMessage, retries = 3) {
+            const key = getEffectiveApiKey();
+            if (!key) throw new Error("No API Key");
+
+            const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${key}`;
+            
+            const payload = {
+                contents: [{ parts: [{ text: userMessage }] }],
+                systemInstruction: { parts: [{ text: systemPrompt }] },
+                generationConfig: { responseMimeType: "application/json" }
+            };
+            
+            // Adjust mimetype for roast (plaintext)
+            if (userMessage.includes('reaction')) {
+                 delete payload.generationConfig;
+            }
+
+            for (let i = 0; i < retries; i++) {
+                try {
+                    const response = await fetch(url, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(payload)
+                    });
+                    
+                    if (response.status === 400 || response.status === 403) {
+                         // Bad key
+                         localStorage.removeItem('cat_run_gemini_key');
+                         throw new Error("Invalid API Key");
+                    }
+
+                    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+                    return await response.json();
+                } catch (e) {
+                    if (i === retries - 1) throw e;
+                    await new Promise(r => setTimeout(r, 1000 * Math.pow(2, i))); 
+                }
+            }
+        }
+
+        function applyTheme(newTheme) {
+            theme = {
+                player: newTheme.player || '🐈',
+                obstacles: newTheme.obstacles || ['🌵'],
+                birds: newTheme.birds || ['🦅', '🦇'], 
+                clouds: newTheme.clouds || ['☁️'],
+                bgGradient: [newTheme.bgGradientTop || '#87CEEB', newTheme.bgGradientBottom || '#E0F7FA'],
+                groundColor: newTheme.groundColor || '#4ade80',
+                roadColor: newTheme.roadColor || '#6b7280',
+                title: newTheme.title || 'Cat Run',
+                desc: newTheme.desc || 'Run!',
+                story: newTheme.story || ''
+            };
+
+            // Update DOM
+            document.getElementById('gameTitle').innerText = theme.title;
+            document.getElementById('gameDesc').innerText = theme.desc;
+            document.getElementById('startScreen').querySelector('h1').innerText = theme.title;
+            
+            const storyEl = document.getElementById('gameStory');
+            if (theme.story) {
+                storyEl.innerText = theme.story;
+                storyEl.style.display = 'block';
+            } else {
+                storyEl.style.display = 'none';
+            }
+
+            // Update Game Container Background
+            document.getElementById('game-container').style.background = `linear-gradient(to bottom, ${theme.bgGradient[0]} 0%, ${theme.bgGradient[1]} 100%)`;
+
+            // Update Sprites
+            sprites.player = [theme.player];
+            sprites.obstacles = theme.obstacles;
+            sprites.birds = theme.birds;
+            sprites.clouds = theme.clouds;
+
+            renderBackground(); 
+        }
+
+        // --- Game Logic ---
+
+        function startGame() {
+            player.y = 0;
+            player.dy = 0;
+            player.health = config.maxHealth;
+            score = 0;
+            gameSpeed = config.initialSpeed;
+            obstacles = [];
+            clouds = [];
+            frameCount = 0;
+            isGameOver = false;
+            isPlaying = true;
+            lastCauseOfDeath = "";
+
+            document.getElementById('startScreen').classList.add('hidden');
+            document.getElementById('gameOverScreen').classList.add('hidden');
+            // Reset Commentary
+            document.getElementById('commentaryBox').innerHTML = '<div class="loading-spinner"></div> Analyzing Run...';
+            
+            updateHealthDisplay();
+
+            for(let i=0; i<5; i++) {
+                spawnCloud(Math.random() * canvas.width);
+            }
+
+            if (animationId) cancelAnimationFrame(animationId);
+            gameLoop();
+        }
+
+        function goHome() {
+            document.getElementById('gameOverScreen').classList.add('hidden');
+            document.getElementById('startScreen').classList.remove('hidden');
+        }
+        
+        function quitGame() {
+            isPlaying = false;
+            isGameOver = false; 
+            if (animationId) cancelAnimationFrame(animationId);
+            document.getElementById('startScreen').classList.remove('hidden');
+            renderBackground(); 
+        }
+
+        function gameOver() {
+            isGameOver = true;
+            isPlaying = false;
+            document.getElementById('finalScore').innerText = `Score: ${Math.floor(score)}`;
+            document.getElementById('gameOverScreen').classList.remove('hidden');
+            
+            // Trigger AI Commentary
+            generateRoast();
+        }
+
+        function spawnObstacle() {
+            // 30% chance to spawn a flying bird
+            const isFlying = Math.random() > 0.7;
+            let type, yOffset;
+
+            if (isFlying) {
+                type = sprites.birds[Math.floor(Math.random() * sprites.birds.length)];
+                yOffset = 70; // Height above the road for flying obstacles
+            } else {
+                type = sprites.obstacles[Math.floor(Math.random() * sprites.obstacles.length)];
+                yOffset = 0; // On the ground
+            }
+
+            obstacles.push({
+                x: canvas.width,
+                type: type,
+                yOffset: yOffset,
+                width: 30,
+                height: 35,
+                passed: false
+            });
+        }
+
+        function spawnCloud(xPos) {
+            clouds.push({
+                x: xPos || canvas.width,
+                y: Math.random() * (canvas.height / 2),
+                speed: (Math.random() * 0.5) + 0.1,
+                type: sprites.clouds[Math.floor(Math.random() * sprites.clouds.length)],
+                size: 20 + Math.random() * 40
+            });
+        }
+
+        function updateHealthDisplay() {
+            const hearts = '❤️'.repeat(player.health) + '🤍'.repeat(config.maxHealth - player.health);
+            document.getElementById('healthDisplay').innerText = hearts;
+        }
+
+        function renderBackground() {
+             ctx.clearRect(0, 0, canvas.width, canvas.height);
+             const roadY = canvas.height - config.groundHeight;
+             ctx.fillStyle = theme.groundColor;
+             ctx.fillRect(0, roadY, canvas.width, config.groundHeight);
+             ctx.fillStyle = theme.roadColor;
+             ctx.fillRect(0, roadY + 5, canvas.width, config.groundHeight - 5);
+        }
+
+        function gameLoop() {
+            if (!isPlaying) return;
+
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            frameCount++;
+            gameSpeed += config.speedIncrease;
+
+            // Background Elements
+            if (frameCount % 200 === 0 && clouds.length < 8) spawnCloud();
+            
+            clouds.forEach((cloud, index) => {
+                cloud.x -= cloud.speed;
+                ctx.font = `${cloud.size}px Arial`;
+                ctx.fillStyle = 'rgba(255,255,255,0.8)';
+                ctx.fillText(cloud.type, cloud.x, cloud.y);
+                if (cloud.x < -100) clouds.splice(index, 1);
+            });
+
+            // Road
+            const roadY = canvas.height - config.groundHeight;
+            ctx.fillStyle = theme.groundColor;
+            ctx.fillRect(0, roadY, canvas.width, config.groundHeight);
+            
+            ctx.fillStyle = theme.roadColor;
+            ctx.fillRect(0, roadY + 5, canvas.width, config.groundHeight - 5);
+            
+            // Stripes
+            ctx.fillStyle = 'rgba(255,255,255,0.5)';
+            const stripeWidth = 40;
+            const stripeGap = 60;
+            const offset = (frameCount * gameSpeed) % (stripeWidth + stripeGap);
+            for (let i = -offset; i < canvas.width; i += (stripeWidth + stripeGap)) {
+                ctx.fillRect(i, roadY + 20, stripeWidth, 5);
+            }
+
+            // Player
+            player.update();
+            player.draw();
+
+            // Obstacles
+            if (frameCount % Math.floor(config.obstacleSpawnRate / (gameSpeed/config.initialSpeed)) === 0) {
+                if (Math.random() > 0.3) spawnObstacle(); 
+            }
+
+            for (let i = obstacles.length - 1; i >= 0; i--) {
+                let obs = obstacles[i];
+                obs.x -= gameSpeed;
+
+                // Draw Obstacle
+                const drawY = roadY + 5 - obs.yOffset;
+
+                ctx.font = '35px Arial';
+                ctx.textAlign = 'left'; 
+                ctx.textBaseline = 'bottom';
+                ctx.fillStyle = '#000000';
+                ctx.fillText(obs.type, obs.x, drawY);
+
+                const playerHitbox = {
+                    x: player.x + 10,
+                    y: canvas.height - config.groundHeight + player.y - 35,
+                    w: 20,
+                    h: 30
+                };
+
+                const obsHitbox = {
+                    x: obs.x + 5,
+                    y: drawY - 30, 
+                    w: 25,
+                    h: 30
+                };
+
+                if (
+                    playerHitbox.x < obsHitbox.x + obsHitbox.w &&
+                    playerHitbox.x + playerHitbox.w > obsHitbox.x &&
+                    playerHitbox.y < obsHitbox.y + obsHitbox.h &&
+                    playerHitbox.h + playerHitbox.y > obsHitbox.y
+                ) {
+                    player.health--;
+                    updateHealthDisplay();
+                    lastCauseOfDeath = obs.type; // Track what hit us
+                    obstacles.splice(i, 1);
+                    
+                    ctx.fillStyle = 'rgba(255, 0, 0, 0.5)';
+                    ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+                    if (player.health <= 0) {
+                        gameOver();
+                        return;
+                    }
+                    continue;
+                }
+
+                if (obs.x + obs.width < player.x && !obs.passed) {
+                    obs.passed = true;
+                }
+
+                if (obs.x < -50) {
+                    obstacles.splice(i, 1);
+                }
+            }
+
+            score += (gameSpeed * 0.01);
+            document.getElementById('scoreDisplay').innerText = `Score: ${Math.floor(score)}`;
+
+            animationId = requestAnimationFrame(gameLoop);
+        }
+
+        init();
+    </script>
+</body>
+</html>
